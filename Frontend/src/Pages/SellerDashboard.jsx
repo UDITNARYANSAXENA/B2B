@@ -2,11 +2,17 @@
 import React, { useState, useEffect } from "react";
 import { useUser, useAuth, RedirectToSignIn } from "@clerk/clerk-react";
 import axios from "axios";
-import { categoriesData } from "../Component/CategoryShowcase"; // ← Path apne hisab se adjust kar lena
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
   ? `${import.meta.env.VITE_API_BASE_URL}/api`
   : "http://localhost:5000/api";
+
+const DEFAULT_CATEGORIES = [
+  'medicine', 'cosmetics', 'personal-care', 'food', 'beverages',
+  'confectionery', 'daily-use', 'home-kitchen', 'construction',
+  'machinery', 'electrical', 'apparel', 'textiles', 'electronics',
+  'automotive', 'agriculture', 'packaging', 'pet-supplies'
+];
 
 export default function SellerDashboard() {
   const { user, isLoaded, isSignedIn } = useUser();
@@ -14,8 +20,9 @@ export default function SellerDashboard() {
 
   const [products, setProducts] = useState([]);
   const [enquiries, setEnquiries] = useState([]);
-  const [activeTab, setActiveTab] = useState("products");
+  const [allCategories, setAllCategories] = useState(DEFAULT_CATEGORIES);
 
+  const [activeTab, setActiveTab] = useState("products");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -31,13 +38,39 @@ export default function SellerDashboard() {
   const [previewUrls, setPreviewUrls] = useState([]);
   const [editingId, setEditingId] = useState(null);
 
-  // Fetch Seller's Data
+  // Load Data
   useEffect(() => {
     if (isLoaded && isSignedIn && user?.unsafeMetadata?.role === "seller") {
+      fetchAllCategories();
       fetchMyProducts();
       fetchMyEnquiries();
     }
   }, [isLoaded, isSignedIn, user]);
+
+  const fetchAllCategories = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/categories`);
+      
+      if (res.data.success) {
+        let cats = res.data.categories || [];
+
+        // Handle both string and object format
+        const normalized = cats.map(cat => 
+          typeof cat === 'string' ? cat : cat.name || cat
+        );
+
+        const combined = [...DEFAULT_CATEGORIES];
+        normalized.forEach(cat => {
+          if (cat && !combined.includes(cat)) combined.push(cat);
+        });
+
+        setAllCategories(combined);
+      }
+    } catch (err) {
+      console.warn("Using default categories");
+      setAllCategories(DEFAULT_CATEGORIES);
+    }
+  };
 
   const fetchMyProducts = async () => {
     try {
@@ -47,7 +80,7 @@ export default function SellerDashboard() {
       });
       setProducts(res.data);
     } catch (err) {
-      console.error("Failed to fetch my products:", err);
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -61,11 +94,10 @@ export default function SellerDashboard() {
       });
       setEnquiries(res.data);
     } catch (err) {
-      console.error("Failed to fetch enquiries:", err);
+      console.error(err);
     }
   };
 
-  // Image Handler
   const handleImageSelect = (e) => {
     const files = Array.from(e.target.files);
     if (files.length > 4) {
@@ -73,10 +105,9 @@ export default function SellerDashboard() {
       return;
     }
     setSelectedImages(files);
-    setPreviewUrls(files.map((file) => URL.createObjectURL(file)));
+    setPreviewUrls(files.map(file => URL.createObjectURL(file)));
   };
 
-  // Submit Form (Add or Update Product)
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name || !form.category || !form.price) {
@@ -90,53 +121,32 @@ export default function SellerDashboard() {
       const formData = new FormData();
 
       formData.append("name", form.name);
-      formData.append("category", form.category);
+      formData.append("category", form.category.toLowerCase());
       formData.append("price", form.price);
       formData.append("moq", form.moq);
       formData.append("description", form.description || "");
 
-      selectedImages.forEach((image) => formData.append("images", image));
-
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-      };
+      selectedImages.forEach(image => formData.append("images", image));
 
       if (editingId) {
-        // Update Product
-        await axios.put(
-          `${API_BASE_URL}/products/${editingId}`,
-          {
-            name: form.name,
-            category: form.category,
-            price: Number(form.price),
-            moq: Number(form.moq),
-            description: form.description,
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
+        await axios.put(`${API_BASE_URL}/products/${editingId}`, {
+          name: form.name,
+          category: form.category.toLowerCase(),
+          price: Number(form.price),
+          moq: Number(form.moq),
+          description: form.description,
+        }, { headers: { Authorization: `Bearer ${token}` } });
       } else {
-        // Add New Product
-        await axios.post(`${API_BASE_URL}/products`, formData, config);
+        await axios.post(`${API_BASE_URL}/products`, formData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
       }
 
-      alert(
-        editingId
-          ? "Product Updated Successfully!"
-          : "Product Added Successfully!",
-      );
+      alert(editingId ? "Product Updated!" : "Product Added!");
       resetForm();
       fetchMyProducts();
     } catch (error) {
-      console.error(error);
-      alert(
-        error.response?.data?.error ||
-          "Failed to save product. Please try again.",
-      );
+      alert(error.response?.data?.message || "Failed to save product");
     } finally {
       setSubmitting(false);
     }
@@ -159,43 +169,28 @@ export default function SellerDashboard() {
     });
     setEditingId(product._id);
     setPreviewUrls(product.images || []);
-    setActiveTab("products"); // Switch to form tab
+    setActiveTab("products");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this product?"))
-      return;
-
+    if (!window.confirm("Delete this product?")) return;
     try {
       const token = await getToken();
       await axios.delete(`${API_BASE_URL}/products/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      alert("Product Deleted Successfully");
+      alert("Product Deleted");
       fetchMyProducts();
     } catch (err) {
-      alert("Failed to delete product");
+      alert("Failed to delete");
     }
   };
 
-  // Early Returns
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-xl bg-gray-50">
-        Loading...
-      </div>
-    );
-  }
-
+  if (!isLoaded) return <div className="min-h-screen flex items-center justify-center text-xl bg-gray-50">Loading...</div>;
   if (!isSignedIn) return <RedirectToSignIn />;
-
   if (user?.unsafeMetadata?.role !== "seller") {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-red-600 text-xl bg-gray-50">
-        Access Denied! Only Sellers are allowed here.
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center text-red-600 text-xl bg-gray-50">Access Denied! Only Sellers allowed.</div>;
   }
 
   return (
@@ -203,200 +198,80 @@ export default function SellerDashboard() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex justify-between items-center mb-10">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900">
-              Seller Dashboard
-            </h1>
+            <h1 className="text-4xl font-bold text-gray-900">Seller Dashboard</h1>
             <p className="text-gray-600 mt-2">
-              Welcome back,{" "}
-              {user?.unsafeMetadata?.company || user?.firstName || "Seller"}
+              Welcome back, {user?.unsafeMetadata?.company || user?.firstName || "Seller"}
             </p>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="flex border-b mb-8 bg-white rounded-t-3xl shadow-sm">
-          <button
-            onClick={() => setActiveTab("products")}
-            className={`flex-1 py-5 text-lg font-semibold rounded-tl-3xl transition-all ${
-              activeTab === "products"
-                ? "border-b-4 border-emerald-600 text-emerald-700"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
+          <button onClick={() => setActiveTab("products")} className={`flex-1 py-5 text-lg font-semibold rounded-tl-3xl transition-all ${activeTab === "products" ? "border-b-4 border-emerald-600 text-emerald-700" : "text-gray-500 hover:text-gray-700"}`}>
             My Products ({products.length})
           </button>
-          <button
-            onClick={() => setActiveTab("enquiries")}
-            className={`flex-1 py-5 text-lg font-semibold rounded-tr-3xl transition-all ${
-              activeTab === "enquiries"
-                ? "border-b-4 border-emerald-600 text-emerald-700"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
+          <button onClick={() => setActiveTab("enquiries")} className={`flex-1 py-5 text-lg font-semibold rounded-tr-3xl transition-all ${activeTab === "enquiries" ? "border-b-4 border-emerald-600 text-emerald-700" : "text-gray-500 hover:text-gray-700"}`}>
             Enquiries ({enquiries.length})
           </button>
         </div>
 
-        {/* ==================== PRODUCTS TAB ==================== */}
         {activeTab === "products" && (
           <>
-            {/* Add / Edit Product Form */}
             <div className="bg-white rounded-3xl shadow-xl p-8 mb-12">
-              <h2 className="text-2xl font-semibold mb-6">
-                {editingId ? "Edit Product" : "Add New Product"}
-              </h2>
+              <h2 className="text-2xl font-semibold mb-6">{editingId ? "Edit Product" : "Add New Product"}</h2>
 
-              <form
-                onSubmit={handleSubmit}
-                className="grid grid-cols-1 md:grid-cols-2 gap-6"
-              >
-                <input
-                  type="text"
-                  placeholder="Product Name *"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                  className="px-5 py-4 border border-gray-300 rounded-2xl focus:outline-none focus:border-emerald-500"
-                />
+              <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <input type="text" placeholder="Product Name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required className="px-5 py-4 border border-gray-300 rounded-2xl focus:outline-none focus:border-emerald-500" />
 
-                {/* Category Dropdown - Only Allowed Categories */}
-                <select
-                  value={form.category}
-                  onChange={(e) =>
-                    setForm({ ...form, category: e.target.value })
-                  }
-                  required
-                  className="px-5 py-4 border border-gray-300 rounded-2xl focus:outline-none focus:border-emerald-500 bg-white"
-                >
+                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} required className="px-5 py-4 border border-gray-300 rounded-2xl focus:outline-none focus:border-emerald-500 bg-white">
                   <option value="">Select Category *</option>
-                  {categoriesData.map((cat) => (
-                    <option key={cat.slug} value={cat.slug}>
-                      {cat.name}
+                  {allCategories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
                     </option>
                   ))}
                 </select>
 
-                <input
-                  type="number"
-                  placeholder="Price (₹) *"
-                  value={form.price}
-                  onChange={(e) => setForm({ ...form, price: e.target.value })}
-                  required
-                  className="px-5 py-4 border border-gray-300 rounded-2xl focus:outline-none focus:border-emerald-500"
-                />
+                {/* Other inputs remain same */}
+                <input type="number" placeholder="Price (₹) *" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} required className="px-5 py-4 border border-gray-300 rounded-2xl focus:outline-none focus:border-emerald-500" />
 
-                <input
-                  type="number"
-                  placeholder="Minimum Order Quantity (MOQ)"
-                  value={form.moq}
-                  onChange={(e) => setForm({ ...form, moq: e.target.value })}
-                  className="px-5 py-4 border border-gray-300 rounded-2xl focus:outline-none focus:border-emerald-500"
-                />
+                <input type="number" placeholder="Minimum Order Quantity (MOQ)" value={form.moq} onChange={(e) => setForm({ ...form, moq: e.target.value })} className="px-5 py-4 border border-gray-300 rounded-2xl focus:outline-none focus:border-emerald-500" />
 
-                <textarea
-                  placeholder="Product Description (Optional)"
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm({ ...form, description: e.target.value })
-                  }
-                  className="md:col-span-2 px-5 py-4 border border-gray-300 rounded-2xl h-32 focus:outline-none focus:border-emerald-500"
-                />
+                <textarea placeholder="Product Description (Optional)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="md:col-span-2 px-5 py-4 border border-gray-300 rounded-2xl h-32 focus:outline-none focus:border-emerald-500" />
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Product Images (Max 4)
-                  </label>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageSelect}
-                    className="block w-full text-sm text-gray-500 
-                               file:mr-4 file:py-3 file:px-6 file:rounded-2xl 
-                               file:border-0 file:text-sm file:font-medium 
-                               file:bg-emerald-50 file:text-emerald-700 
-                               hover:file:bg-emerald-100"
-                  />
-
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Product Images (Max 4)</label>
+                  <input type="file" multiple accept="image/*" onChange={handleImageSelect} className="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-6 file:rounded-2xl file:border-0 file:text-sm file:font-medium file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
                   {previewUrls.length > 0 && (
                     <div className="flex gap-3 mt-4 flex-wrap">
-                      {previewUrls.map((url, i) => (
-                        <img
-                          key={i}
-                          src={url}
-                          alt="preview"
-                          className="w-24 h-24 object-cover rounded-2xl border border-gray-200"
-                        />
-                      ))}
+                      {previewUrls.map((url, i) => <img key={i} src={url} alt="preview" className="w-24 h-24 object-cover rounded-2xl border border-gray-200" />)}
                     </div>
                   )}
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="md:col-span-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white py-4 rounded-2xl font-semibold text-lg transition-all"
-                >
-                  {submitting
-                    ? "Saving..."
-                    : editingId
-                      ? "Update Product"
-                      : "Add Product"}
+                <button type="submit" disabled={submitting} className="md:col-span-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white py-4 rounded-2xl font-semibold text-lg transition-all">
+                  {submitting ? "Saving..." : editingId ? "Update Product" : "Add Product"}
                 </button>
               </form>
             </div>
 
-            {/* My Products Grid */}
-            <h2 className="text-3xl font-bold mb-8">
-              My Products ({products.length})
-            </h2>
-
+            {/* Products Grid */}
+            <h2 className="text-3xl font-bold mb-8">My Products ({products.length})</h2>
             {loading ? (
-              <div className="text-center py-20 text-gray-500">
-                Loading your products...
-              </div>
+              <div className="text-center py-20 text-gray-500">Loading your products...</div>
             ) : products.length === 0 ? (
-              <div className="bg-white rounded-3xl p-20 text-center text-gray-500">
-                You haven't added any products yet. Start adding from above
-                form.
-              </div>
+              <div className="bg-white rounded-3xl p-20 text-center text-gray-500">You haven't added any products yet.</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {products.map((p) => (
-                  <div
-                    key={p._id}
-                    className="bg-white rounded-3xl shadow hover:shadow-xl transition-all p-6"
-                  >
-                    {p.images?.[0] && (
-                      <img
-                        src={p.images[0]}
-                        alt={p.name}
-                        className="w-full h-52 object-cover rounded-2xl mb-5"
-                      />
-                    )}
-                    <h3 className="font-semibold text-xl line-clamp-2">
-                      {p.name}
-                    </h3>
-                    <p className="text-emerald-600 font-bold text-2xl mt-2">
-                      ₹{p.price?.toLocaleString("en-IN")}
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      MOQ: {p.moq || "N/A"} • Category: {p.category}
-                    </p>
-
+                  <div key={p._id} className="bg-white rounded-3xl shadow hover:shadow-xl transition-all p-6">
+                    {p.images?.[0] && <img src={p.images[0]} alt={p.name} className="w-full h-52 object-cover rounded-2xl mb-5" />}
+                    <h3 className="font-semibold text-xl line-clamp-2">{p.name}</h3>
+                    <p className="text-emerald-600 font-bold text-2xl mt-2">₹{p.price?.toLocaleString("en-IN")}</p>
+                    <p className="text-sm text-gray-500 mt-1">MOQ: {p.moq || "N/A"} • Category: {p.category}</p>
                     <div className="flex gap-3 mt-8">
-                      <button
-                        onClick={() => handleEdit(p)}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-2xl font-medium transition"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(p._id)}
-                        className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3.5 rounded-2xl font-medium transition"
-                      >
-                        Delete
-                      </button>
+                      <button onClick={() => handleEdit(p)} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-2xl font-medium transition">Edit</button>
+                      <button onClick={() => handleDelete(p._id)} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3.5 rounded-2xl font-medium transition">Delete</button>
                     </div>
                   </div>
                 ))}
@@ -404,7 +279,6 @@ export default function SellerDashboard() {
             )}
           </>
         )}
-
         {/* ==================== ENQUIRIES TAB ==================== */}
         {activeTab === "enquiries" && (
           <div className="bg-white rounded-3xl shadow-xl">

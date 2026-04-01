@@ -15,7 +15,6 @@ const productSchema = new mongoose.Schema({
     index: true
   },
 
-  // 🔥 ADD THIS (IMPORTANT)
   sellerName: {
     type: String,
     required: true
@@ -34,9 +33,9 @@ const productSchema = new mongoose.Schema({
   category: { 
     type: String, 
     required: true,
-    enum: allowedCategories,
+    trim: true,
     lowercase: true,
-    trim: true
+    // Enum hataya nahi → validation dynamically karenge
   },
 
   price: { 
@@ -65,6 +64,19 @@ const productSchema = new mongoose.Schema({
     type: Date, 
     default: Date.now 
   }
+});
+
+// Dynamic Category Validation (Pre-save hook)
+productSchema.pre('save', async function(next) {
+  const Category = mongoose.model('Category');
+  
+  const isInAllowed = allowedCategories.includes(this.category);
+  const existsInDB = await Category.exists({ name: this.category });
+
+  if (!isInAllowed && !existsInDB) {
+    return next(new Error(`Invalid category: "${this.category}". Allowed categories ya admin se add kiye gaye categories hi use kar sakte ho.`));
+  }
+  next();
 });
 
 productSchema.index({ category: 1 });

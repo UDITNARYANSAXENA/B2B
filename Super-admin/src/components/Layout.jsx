@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Building2, Package, MessageSquare, LogOut } from 'lucide-react';
+import { Building2, Package, Tags, MessageSquare, LogOut } from 'lucide-react'; // ← Tags icon added
 
 function Layout({ children }) {
   const navigate = useNavigate();
@@ -21,6 +21,7 @@ function Layout({ children }) {
 
         <div className="flex-1 p-6 space-y-2">
           <SidebarButton icon={Building2} label="All Companies" path="/companies" />
+          <SidebarButton icon={Tags} label="All Categories" path="/categories" />     {/* ← New */}
           <SidebarButton icon={Package} label="All Products" path="/products" />
           <SidebarButton icon={MessageSquare} label="All Enquiries" path="/enquiries" />
         </div>

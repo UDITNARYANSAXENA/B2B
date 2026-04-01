@@ -4,6 +4,7 @@ import Login from './components/Login';
 import Companies from './components/Companies';
 import Products from './components/Products';
 import Enquiries from './components/Enquiries';
+import Categories from './components/Categories';   // ← New
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(null);
@@ -13,7 +14,7 @@ export default function App() {
     setIsLoggedIn(!!token);
   }, []);
 
-  if (isLoggedIn === null) return null; // prevent flicker
+  if (isLoggedIn === null) return null;
 
   return (
     <Router>
@@ -21,8 +22,9 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/companies" element={isLoggedIn ? <Companies /> : <Navigate to="/login" />} />
         <Route path="/products" element={isLoggedIn ? <Products /> : <Navigate to="/login" />} />
+        <Route path="/categories" element={isLoggedIn ? <Categories /> : <Navigate to="/login" />} />
         <Route path="/enquiries" element={isLoggedIn ? <Enquiries /> : <Navigate to="/login" />} />
-        <Route path="*" element={<Navigate to="/login" />} />
+        <Route path="*" element={<Navigate to="/companies" />} />
       </Routes>
     </Router>
   );

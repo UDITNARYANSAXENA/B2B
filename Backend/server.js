@@ -49,6 +49,9 @@ app.use(ClerkExpressWithAuth());   // Global auth (optional)
 app.use('/api/products', productRoutes);
 app.use('/api/auth', authRoutes); // ADD THIS
 app.use('/api/enquiries', enquiryRoutes);
+app.use('/uploads', express.static('uploads'));
+
+app.use('/api/categories', require('./routes/category'));
 
 // Health Check
 app.get('/', (req, res) => {
