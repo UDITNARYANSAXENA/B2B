@@ -5,42 +5,39 @@ import { ArrowRight, MapPin, Star } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination } from 'swiper/modules';
 
-import 'swiper/css';
-import 'swiper/css/pagination';
-
 // Reduced & focused data
 const manufacturingHubs = [
   {
     city: "Delhi NCR",
-    image: "https://images.unsplash.com/photo-1582139329536-e4c2c6c8b9e6",
+    image: "https://lh3.googleusercontent.com/gps-cs-s/AHVAwerctKvadf3GDTcro3dMVvI7kydCgZjHFLmgUbKU5WYp-JuRcGeABz-T0-GNfm1jyUCzDn40ZQv1vGJL0PQiudTgtwLyVbvi9sxkEnKVdmEI0JD12YjFnLYZN4KNt68M0yWCmhxFWvPQnLQ=s1360-w1360-h1020-rw",
     suppliers: "2.4K+",
     industries: ["Electronics", "Auto", "Apparel"],
     rating: 4.8
   },
   {
     city: "Mumbai",
-    image: "https://images.unsplash.com/photo-1564507592333-c60657eea523",
+    image: "https://lh3.googleusercontent.com/gpms-cs-s/AFfmt2Z7m9Z5wzSMcCLOjzrZvGx86WSJ20lbO07tu4ZG3VSe4UbXq0hVoQz5sHbrlagAxYxnauKZmXUjbeZjiMNZ7sOwfKItqV6MYK2HJLW2ppuCeGjGKCssgevT-0DXYjyuztm83cSL=w400-h300-n-k-no",
     suppliers: "3.8K+",
     industries: ["Pharma", "Textiles", "Packaging"],
     rating: 4.9
   },
   {
     city: "Ahmedabad",
-    image: "https://images.unsplash.com/photo-1600585154340-be6161a56a9c",
+    image: "https://lh3.googleusercontent.com/gps-cs-s/AHVAweqFpK3gyZZkkkcFEyv4fSZjfjDY3CLMp0GfMLJATRYMhFQHm0o_uhUHZ7wT4QuOycwvZzOpC3R2bqR1HxKBK_TL4eDUB-zDIE9xw-n_bbtF7ZRnTkTuZk3Uy85V8imqFQ6fTAe0HA=s1360-w1360-h1020-rw",
     suppliers: "5.1K+",
     industries: ["Textiles", "Chemicals", "Machinery"],
     rating: 4.7
   },
   {
     city: "Bengaluru",
-    image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c",
+    image: "https://lh3.googleusercontent.com/gps-cs-s/AHVAweqFe3dP5UZzMMRyXI4mL3WX7lU2oITeR2JoI6LjLs4t3e8vx4Ivb6s3_62x193dVvrLRPAjxpcCK428zX9HaWlYxK-EV7uam0eaxVVHLO-8t2CN7ku14vE_3371aTzlgtfctuVL7ebTbw=s1360-w1360-h1020-rw",
     suppliers: "2.9K+",
     industries: ["Electronics", "Aerospace", "IT"],
     rating: 4.8
   },
   {
     city: "Surat",
-    image: "https://images.unsplash.com/photo-1571896349840-e26b311e650c",
+    image: "https://lh3.googleusercontent.com/gpms-cs-s/AFfmt2YdVrYRHJNWXRoY_Fk-8YjMMFNF6NH6q_7jt-eOW4EpQ77Vom_STe_C6qjKPB9AFBBZNosGvA-8QlbW7o24fRzlpbb84tEWVazv8ZNaXrX0zYt5Zm_FZZC4ltsQq29zdvTvHJnw=w533-h300-n-k-no",
     suppliers: "6.7K+",
     industries: ["Textiles", "Diamonds", "Apparel"],
     rating: 4.9
